@@ -1,0 +1,17 @@
+kind: phrony.manifest
+version: 1
+metadata:
+  label: example
+llmProviders:
+  - name: openai
+    type: openai
+agents:
+  - manifestKey: example_root
+    name: Example root agent
+    executionMode: request
+    llmProviderName: openai
+versions:
+  - agentManifestKey: example_root
+    status: testing
+    versionLabel: v1
+    llmModel: gpt-4o-mini

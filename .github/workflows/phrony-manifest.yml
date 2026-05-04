@@ -1,0 +1,55 @@
+# Example: run `phrony lint` on PRs and optional manifest plan in CI.
+# Set repository secrets: PHRONY_ACCESS_TOKEN, PHRONY_TENANT_ID (create the token in the Phrony dashboard).
+# Optional: PHRONY_API_BASE if not using the default cloud API host.
+
+name: Phrony manifest
+
+on:
+  pull_request:
+    paths:
+      - "manifests/**"
+      - "phrony.config.json"
+      - ".github/workflows/phrony-manifest.yml"
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run cli -- lint ./manifests --json
+
+  # Uncomment when your CI can reach your Phrony API:
+  # plan:
+  #   runs-on: ubuntu-latest
+  #   needs: lint
+  #   env:
+  #     PHRONY_ACCESS_TOKEN: ${{ secrets.PHRONY_ACCESS_TOKEN }}
+  #     PHRONY_TENANT_ID: ${{ secrets.PHRONY_TENANT_ID }}
+  #     PHRONY_API_BASE: ${{ secrets.PHRONY_API_BASE }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: pnpm/action-setup@v4
+  #       with:
+  #         version: 9
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "20"
+  #         cache: "pnpm"
+  #         cache-dependency-path: pnpm-lock.yaml
+  #     - run: pnpm install --frozen-lockfile
+  #     - run: pnpm run build
+  #     - run: pnpm run cli -- plan ./manifests --json
+  #     # Mutating apply in CI requires both flags:
+  #     # - run: pnpm run cli -- apply ./manifests --json --auto-approve

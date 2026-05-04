@@ -1,0 +1,4 @@
+kind: phrony.manifest.index
+version: 1
+includes:
+  - "./example.yaml"
