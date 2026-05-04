@@ -12,18 +12,17 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/phrony-platform/cli.git"
+    "url": "git+https://github.com/phrony-platform/cli.git"
   },
   "bugs": {
     "url": "https://github.com/phrony-platform/cli/issues"
   },
   "homepage": "https://github.com/phrony-platform/cli#readme",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "bin": {
-    "phrony": "./dist/cli.mjs"
+    "phrony": "dist/cli.mjs"
   },
   "files": [
     "dist"
