@@ -1,31 +1,15 @@
 /**
- * Single source of truth for manifest HTTP paths and semantics until the public API ships.
+ * Manifest HTTP helpers and feature flags for the Phrony CLI.
  *
- * Confirmed from phrony-platform gateway (2026-05):
- * - **Internal** (`Authorization: Bearer`): dashboard JWT, CLI OAuth access tokens, and **workspace access
- *   tokens** (`pwt_…` from the Phrony dashboard) call `POST …/internal/v1/tenants/:tenantId/agents/manifest/apply`
- *   (not `X-API-Key`). The gateway proxies to control-plane `POST /srv/v1/tenants/:tenantId/agents/manifest/apply`
- *   (`Content-Type: text/yaml`). Query: `dryRun`, `prune`, `nameSuffix`, `anchorAgentId` (UUID).
- * - **Internal export**: `GET …/internal/v1/tenants/:tenantId/agents/:agentId/manifest` →
- *   `GET /srv/v1/tenants/:tenantId/agents/:agentId/manifest` (YAML). Export is a **subtree from the
- *   given root agent id**, not an arbitrary workspace-wide file.
- * - **Public** `ExternalAgentsController` (`X-API-Key`): sessions + runs only — **no manifest routes**.
- *   The Phrony CLI does **not** use API keys for `plan` / `apply` / `diff`; use Bearer (`phrony login` or
- *   `PHRONY_ACCESS_TOKEN`) on internal routes only.
+ * `plan`, `apply`, and `diff` use `Authorization: Bearer` (OAuth from `phrony login` or
+ * `PHRONY_ACCESS_TOKEN`) on workspace manifest routes — not `X-API-Key`. Apply accepts query parameters
+ * `dryRun`, `prune`, `nameSuffix`, and `anchorAgentId` (UUID). Export for `diff` returns YAML for the
+ * subtree rooted at the configured agent id, not an arbitrary workspace-wide snapshot.
  *
- * Do not invent public URLs here; update this module when docs + gateway expose stable routes.
+ * Update this module when documented HTTP behaviour changes.
  */
 
 export const PUBLIC_MANIFEST_HTTP_API_SUPPORTED = false as const;
-
-/** Control-plane paths behind the internal gateway (reference for future public parity). */
-export function srvManifestApplyPath(tenantId: string): string {
-  return `/srv/v1/tenants/${tenantId}/agents/manifest/apply`;
-}
-
-export function srvAgentManifestExportPath(tenantId: string, agentId: string): string {
-  return `/srv/v1/tenants/${tenantId}/agents/${agentId}/manifest`;
-}
 
 export type ManifestApplyQuery = {
   dryRun?: boolean;

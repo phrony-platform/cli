@@ -4,6 +4,10 @@
   "description": "Phrony manifest CLI (lint, login, profile, plan, apply, diff, agent, agent version)",
   "license": "MIT",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bin": {
     "phrony": "./dist/cli.mjs"
   },
@@ -14,6 +18,8 @@
     "node": ">=20"
   },
   "scripts": {
+    "prepublishOnly": "pnpm run build",
+    "publish:run": "pnpm run lint && pnpm test && pnpm publish",
     "build": "tsup",
     "cli": "node ./dist/cli.mjs",
     "dev": "tsx src/cli.ts",
@@ -22,7 +28,6 @@
   },
   "packageManager": "pnpm@9.15.0",
   "dependencies": {
-    "@phrony/sdk": "link:../ts-sdk",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
     "picocolors": "^1.1.1",

@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@phrony/sdk':
-        specifier: link:../ts-sdk
-        version: link:../ts-sdk
       cli-table3:
         specifier: ^0.6.5
         version: 0.6.5

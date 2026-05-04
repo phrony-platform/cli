@@ -17,8 +17,8 @@ function sortedAllowedOperations(
 }
 
 /**
- * Canonical record for `versions[]` comparison — mirrors apply drift defaults in
- * control-plane `ManifestApplyService` (`coreMatch`), so sparse YAML matches a verbose export.
+ * Canonical record for `versions[]` comparison — mirrors apply drift defaults on the server
+ * so sparse YAML matches a verbose export.
  */
 export function canonicalAgentVersionRecord(v: PhronyManifestVersionV1): Record<string, unknown> {
   const canSub = v.canExecuteSubAgents ?? false;

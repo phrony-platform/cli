@@ -1,7 +1,6 @@
 /**
- * Vendored snapshot from phrony-platform `packages/srv-contracts/src/phrony-manifest.ts`.
- * Replace with a published `@phrony/manifest-schema` package when available; until then,
- * re-copy from srv-contracts after schema changes and run `pnpm test`.
+ * JSON Schema types and helpers for Phrony manifest YAML (`phrony lint` uses these offline).
+ * When the upstream manifest contract changes, update these modules and run `pnpm test`.
  *
  * Schemas are split across `manifest-*.ts` modules; this file re-exports the public surface.
  */
