@@ -8,7 +8,12 @@
 # 4. If you use private npm dependencies, use a read-only token for install only
 #    (see https://docs.npmjs.com/trusted-publishers — “Handling private dependencies”).
 #
-# Triggers: push a version tag matching v* (e.g. v0.0.3), or run the workflow manually.
+# Triggers:
+# - Push a version tag matching v* (e.g. v0.0.3)
+# - Publish a GitHub Release (release event)
+# - Manual "Run workflow"
+#
+# Use a v-prefixed tag that matches package.json version (e.g. v0.0.3 for 0.0.3).
 
 name: Publish to npm
 
@@ -16,6 +21,8 @@ on:
   push:
     tags:
       - "v*"
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-npm
+  group: publish-npm-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
