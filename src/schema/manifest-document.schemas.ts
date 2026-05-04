@@ -43,11 +43,21 @@ export const PhronyManifestOperationV1Schema = z.object({
 
 export type PhronyManifestOperationV1 = z.infer<typeof PhronyManifestOperationV1Schema>;
 
+/** Dashboard-only branding URL; stripped so manifests stay portable and drift-free. */
+function omitToolkitLogoFromManifestServiceConfig(config: unknown): unknown {
+  if (config == null || typeof config !== "object" || Array.isArray(config)) {
+    return config;
+  }
+  const o = { ...(config as Record<string, unknown>) };
+  delete o.toolkitLogo;
+  return o;
+}
+
 export const PhronyManifestServiceV1Schema = z.object({
   manifestKey: z.string().min(1).optional(),
   name: z.string().min(1),
   type: ServiceTypeApiSchema,
-  config: jsonObjectSchema.optional(),
+  config: z.preprocess(omitToolkitLogoFromManifestServiceConfig, jsonObjectSchema.optional()),
   secretsRedacted: z.boolean().optional(),
   operations: z.array(PhronyManifestOperationV1Schema).optional(),
 });

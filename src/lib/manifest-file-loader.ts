@@ -249,13 +249,55 @@ export function loadPhronyManifestFromFile(entryPath: string): PhronyManifestV1 
   return mergePhronyManifestDocuments(collected);
 }
 
-/** Merged manifest as YAML text suitable for `POST …/manifest/apply`. */
-export function loadMergedManifestYamlString(entryPath: string): string {
-  const doc = loadPhronyManifestFromFile(entryPath);
+/**
+ * True when the entry YAML stream declares `phrony.manifest.index`, so includes must be
+ * expanded from disk into one merged document before apply.
+ */
+function manifestEntryUsesIndexInclude(absPath: string): boolean {
+  const text = readFileSync(absPath, "utf8").trim();
+  if (!text) {
+    return false;
+  }
+  const lc = new LineCounter();
+  const streamDocs = parseAllDocuments(text, { ...YAML_PARSE_OPTIONS, lineCounter: lc });
+  for (const d of streamDocs) {
+    assertNoYamlDocErrors(absPath, lc, d);
+    const js = d.toJS(YAML_PARSE_OPTIONS);
+    if (
+      js == null ||
+      (typeof js === "object" && !Array.isArray(js) && Object.keys(js as object).length === 0)
+    ) {
+      continue;
+    }
+    if (isIndexDoc(js)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function stringifyMergedManifestForApply(doc: PhronyManifestV1): string {
   return stringify(
     { ...doc, kind: "phrony.manifest" },
     { lineWidth: 120, indent: 2, sortMapEntries: false },
   );
+}
+
+/**
+ * YAML suitable for `POST …/manifest/apply`.
+ *
+ * When the entry file does not use `phrony.manifest.index`, returns the original file text
+ * (after trim) so nested JSON in YAML keeps the same key order as an export. Re-encoding
+ * through `yaml` stringify can reorder object keys and falsely trigger server-side drift
+ * (`JSON.stringify` equality on schemas/config).
+ */
+export function loadMergedManifestYamlString(entryPath: string): string {
+  const abs = path.resolve(entryPath);
+  if (manifestEntryUsesIndexInclude(abs)) {
+    return stringifyMergedManifestForApply(loadPhronyManifestFromFile(abs));
+  }
+  loadPhronyManifestFromFile(abs);
+  return readFileSync(abs, "utf8").trim();
 }
 
 /** Resolve CLI path argument to a concrete manifest entry file. */
