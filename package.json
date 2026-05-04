@@ -4,6 +4,20 @@
   "description": "Official Phrony command-line client for manifests and workspace agents",
   "license": "MIT",
   "type": "module",
+  "keywords": [
+    "phrony",
+    "cli",
+    "manifest",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phrony-platform/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/phrony-platform/cli/issues"
+  },
+  "homepage": "https://github.com/phrony-platform/cli#readme",
   "publishConfig": {
     "access": "public",
     "provenance": true
