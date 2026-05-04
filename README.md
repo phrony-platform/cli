@@ -22,7 +22,7 @@ pnpm run cli -- login
 pnpm run cli -- lint ./manifests
 ```
 
-Requires **Node.js 20+**.
+Requires **Node.js 22.14** or newer.
 
 ## Auth
 
