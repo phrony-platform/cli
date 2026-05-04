@@ -1,6 +1,6 @@
 # @phrony/cli
 
-Command-line tool for Phrony **manifest** workflows and **workspace agents**: validate YAML on disk, list agents and versions (and deploy or retract versions), preview and apply changes against your workspace, and compare local files to what is deployed. Authenticate with **`phrony login`** (interactive), manage profiles with **`phrony profile`**, clear saved OAuth with **`phrony profile logout`** / **`phrony logout`**, or use a **workspace access token** (**`PHRONY_ACCESS_TOKEN`**, for CI); see **Auth** below.
+Official Phrony command-line client. Use it from your machine to work with the same manifests and workspace agents you manage in Phrony; install, auth, and behavior are documented in the sections below.
 
 ## Install
 

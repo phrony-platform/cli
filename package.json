@@ -1,7 +1,7 @@
 {
   "name": "@phrony/cli",
   "version": "0.0.1",
-  "description": "Phrony manifest CLI (lint, login, profile, plan, apply, diff, agent, agent version)",
+  "description": "Official Phrony command-line client for manifests and workspace agents",
   "license": "MIT",
   "type": "module",
   "publishConfig": {
