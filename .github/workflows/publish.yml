@@ -49,9 +49,11 @@ jobs:
         run: pnpm test
 
       # `prepublishOnly` in package.json runs the build; publish runs after that.
+      # Release workflows check out a tag (detached HEAD); pnpm would otherwise fail
+      # publish-branch/git-checks. CI already ran lint + test above.
       # Provenance is CI-only (local `pnpm publish` / `npm publish` has no OIDC provider).
       - name: Publish to npm
-        run: pnpm publish
+        run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
