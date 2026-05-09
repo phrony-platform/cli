@@ -157,7 +157,7 @@ describe("diffManifestTrees", () => {
           instructions: "",
           temperature: 1,
           maxIterations: 10,
-          maxTokensPerRun: 8192,
+          maxTokensPerRun: 400000,
           maxToolCalls: 32,
           anomalyControl: false,
           canExecuteSubAgents: false,

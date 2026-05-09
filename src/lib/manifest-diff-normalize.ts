@@ -1,6 +1,9 @@
 import type { PhronyManifestLlmProviderV1 } from "../schema/manifest-document.schemas.js";
 import type { PhronyManifestVersionV1 } from "../schema/manifest-document.schemas.js";
 
+/** Matches Phrony control-plane default when `maxTokensPerRun` is omitted from YAML. */
+const DEFAULT_MAX_TOKENS_PER_RUN = 400_000;
+
 /** Sorted copy for stable structural comparison (order alone must not surface as drift). */
 function sortedStrings(xs: string[]): string[] {
   return [...xs].sort((a, b) => a.localeCompare(b));
@@ -33,7 +36,7 @@ export function canonicalAgentVersionRecord(v: PhronyManifestVersionV1): Record<
     description: v.description ?? null,
     temperature: v.temperature ?? 1,
     maxIterations: v.maxIterations ?? 10,
-    maxTokensPerRun: v.maxTokensPerRun ?? 8192,
+    maxTokensPerRun: v.maxTokensPerRun ?? DEFAULT_MAX_TOKENS_PER_RUN,
     maxToolCalls: v.maxToolCalls ?? 32,
     anomalyControl: v.anomalyControl ?? false,
     canExecuteSubAgents: canSub,
