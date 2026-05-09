@@ -14,10 +14,11 @@ export function registerLintCommand(program: Command): void {
   const lint = program
     .command("lint")
     .argument("[path]", "file or directory", "./manifests")
-    .description("Validate manifest YAML (Zod) with file includes resolved from disk");
+    .description("Validate manifest YAML (Zod) with file includes resolved from disk")
+    .option("--values <path>", "path to phrony.values.yaml (overrides PHRONY_MANIFEST_VALUES)");
   addGlobalFlags(lint);
   lint.action(async function lintAction(this: Command, target: string) {
-    const g = this.optsWithGlobals() as GlobalCliOptions;
+    const g = this.optsWithGlobals() as GlobalCliOptions & { values?: string };
     chdir(path.resolve(g.cwd));
     const debug = createDebugLogger(Boolean(g.debug));
     const credPath = defaultCredentialsPath();
@@ -28,6 +29,7 @@ export function registerLintCommand(program: Command): void {
       cwd: process.cwd(),
       target,
       json: Boolean(g.json),
+      valuesPath: g.values,
       debug,
     });
     if (g.json) {

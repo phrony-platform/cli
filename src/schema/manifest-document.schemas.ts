@@ -156,10 +156,20 @@ export const PhronyManifestMetadataV1Schema = z.object({
 
 export type PhronyManifestMetadataV1 = z.infer<typeof PhronyManifestMetadataV1Schema>;
 
+export const PhronyManifestInputDeclV1Schema = z.object({
+  key: z.string().regex(/^[a-zA-Z0-9_]+$/, "key must be alphanumeric or underscore"),
+  type: z.enum(["string", "llm_provider", "integration"]),
+  description: z.string().optional(),
+  default: z.string().optional(),
+});
+
+export type PhronyManifestInputDeclV1 = z.infer<typeof PhronyManifestInputDeclV1Schema>;
+
 export const PhronyManifestDocumentV1Schema = z.object({
   kind: PhronyManifestKindSchema,
   version: z.literal(1),
   metadata: PhronyManifestMetadataV1Schema.optional(),
+  inputs: z.array(PhronyManifestInputDeclV1Schema).optional(),
   llmProviders: z.array(PhronyManifestLlmProviderV1Schema).optional(),
   services: z.array(PhronyManifestServiceV1Schema).optional(),
   agents: z.array(PhronyManifestAgentV1Schema).optional(),

@@ -14,7 +14,8 @@ export function registerPlanCommand(program: Command): void {
     .option("--tenant <id>", "tenant id (overrides PHRONY_TENANT_ID / phrony.config.json)")
     .option("--prune", "pass prune=true to apply", false)
     .option("--name-suffix <s>", "optional nameSuffix query param")
-    .option("--anchor-agent <uuid>", "optional anchorAgentId query param");
+    .option("--anchor-agent <uuid>", "optional anchorAgentId query param")
+    .option("--values <path>", "path to phrony.values.yaml (overrides PHRONY_MANIFEST_VALUES)");
   addGlobalFlags(plan);
   plan.action(async function planAction(this: Command, manifestPath: string) {
     const g = this.optsWithGlobals() as GlobalCliOptions & {
@@ -22,6 +23,7 @@ export function registerPlanCommand(program: Command): void {
       prune?: boolean;
       nameSuffix?: string;
       anchorAgent?: string;
+      values?: string;
     };
     chdir(path.resolve(g.cwd));
     const debug = createDebugLogger(Boolean(g.debug));
@@ -34,6 +36,7 @@ export function registerPlanCommand(program: Command): void {
       prune: Boolean(g.prune),
       nameSuffix: g.nameSuffix,
       anchorAgentId: g.anchorAgent,
+      valuesPath: g.values,
       debug,
     });
     if (!ok) {

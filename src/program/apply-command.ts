@@ -15,7 +15,7 @@ export function registerApplyCommand(program: Command): void {
     .option("--prune", "pass prune=true to apply", false)
     .option("--name-suffix <s>", "optional nameSuffix query param")
     .option("--anchor-agent <uuid>", "optional anchorAgentId query param")
-    .option("--auto-approve", "skip interactive confirmation", false);
+    .option("--values <path>", "path to phrony.values.yaml (overrides PHRONY_MANIFEST_VALUES)");
   addGlobalFlags(apply);
   apply.action(async function applyAction(this: Command, manifestPath: string) {
     const g = this.optsWithGlobals() as GlobalCliOptions & {
@@ -24,6 +24,7 @@ export function registerApplyCommand(program: Command): void {
       nameSuffix?: string;
       anchorAgent?: string;
       autoApprove?: boolean;
+      values?: string;
     };
     chdir(path.resolve(g.cwd));
     const debug = createDebugLogger(Boolean(g.debug));
@@ -37,6 +38,7 @@ export function registerApplyCommand(program: Command): void {
       nameSuffix: g.nameSuffix,
       anchorAgentId: g.anchorAgent,
       autoApprove: Boolean(g.autoApprove),
+      valuesPath: g.values,
       debug,
     });
     if (!ok) {

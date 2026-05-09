@@ -1,10 +1,13 @@
 import type { DebugLogger } from "../lib/debug-logger.js";
+import { yamlTextLikelyHasInputPlaceholders } from "../lib/manifest-inputs.js";
 import { loadMergedManifestYamlString, resolveManifestEntryFile } from "../lib/manifest-file-loader.js";
 import {
   createManifestClient,
   ManifestHttpError,
   manifestClientOptionsFromResolved,
 } from "../lib/manifest-client.js";
+import { describeManifestPreflightFailure } from "../lib/manifest-preflight-cli.js";
+import { loadMergedManifestValuesInputs } from "../lib/manifest-values.js";
 import { manifestApplyResultToDto } from "../lib/manifest-plan-dto.js";
 import { renderManifestPlanTable } from "../lib/render-manifest-plan.js";
 import { resolveCliAuth } from "../lib/resolve-cli-auth.js";
@@ -20,6 +23,7 @@ export type PlanOptions = {
   nameSuffix?: string;
   anchorAgentId?: string;
   debug: DebugLogger;
+  valuesPath?: string;
 };
 
 export async function runPlan(opts: PlanOptions): Promise<{ ok: boolean; exitCode: number }> {
@@ -32,16 +36,44 @@ export async function runPlan(opts: PlanOptions): Promise<{ ok: boolean; exitCod
     opts.debug(`plan: tenant=${auth.tenantId} profile=${auth.profile} mode=${auth.mode}`);
     const client = createManifestClient(manifestClientOptionsFromResolved(auth));
     const entry = resolveManifestEntryFile(opts.cwd, opts.manifestPath);
-    const yaml = loadMergedManifestYamlString(entry);
-    const result = await client.applyManifestYaml(yaml, {
-      dryRun: true,
-      prune: opts.prune,
-      nameSuffix: opts.nameSuffix,
-      anchorAgentId: opts.anchorAgentId,
-    });
+    const inputs = loadMergedManifestValuesInputs(opts.cwd, entry, opts.valuesPath);
+    const yaml = loadMergedManifestYamlString(entry, { inputs });
+    if (Object.keys(inputs).length > 0 || yamlTextLikelyHasInputPlaceholders(yaml)) {
+      const preflight = await client.preflightManifest({ yaml, inputs });
+      if (!preflight.ok) {
+        if (opts.json) {
+          console.log(
+            JSON.stringify(
+              {
+                command: "plan",
+                ok: false,
+                preflight,
+                message: describeManifestPreflightFailure(preflight),
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.error(describeManifestPreflightFailure(preflight));
+        }
+        return { ok: false, exitCode: 1 };
+      }
+    }
+    const transport = Object.keys(inputs).length > 0 ? { inputs } : undefined;
+    const result = await client.applyManifestYaml(
+      yaml,
+      {
+        dryRun: true,
+        prune: opts.prune,
+        nameSuffix: opts.nameSuffix,
+        anchorAgentId: opts.anchorAgentId,
+      },
+      transport,
+    );
     const dto = manifestApplyResultToDto(result);
     if (opts.json) {
-      console.log(JSON.stringify({ command: "plan", ok: true, ...dto }, null, 2));
+      console.log(JSON.stringify({ command: "plan", ok: true, preflightOk: true, ...dto }, null, 2));
     } else {
       console.log(renderManifestPlanTable(dto));
     }

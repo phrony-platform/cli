@@ -1,3 +1,10 @@
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/phrony-logo-dark.svg">
+  <img alt="Phrony" src="./assets/phrony-logo-light.svg" width="220">
+</picture>
+</p>
+
 # @phrony/cli
 
 Official Phrony command-line client. Use it from your machine to work with the same manifests and workspace agents you manage in Phrony; install, auth, and behavior are documented in the sections below.

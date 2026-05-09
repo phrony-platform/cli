@@ -3,6 +3,7 @@ import { readdirSync, statSync } from "node:fs";
 import pc from "picocolors";
 import type { DebugLogger } from "../lib/debug-logger.js";
 import { loadPhronyManifestFromFile } from "../lib/manifest-file-loader.js";
+import { loadMergedManifestValuesInputs } from "../lib/manifest-values.js";
 
 function isYamlFile(name: string): boolean {
   return name.endsWith(".yaml") || name.endsWith(".yml");
@@ -40,6 +41,7 @@ export type LintOptions = {
   target: string;
   json: boolean;
   debug: DebugLogger;
+  valuesPath?: string;
 };
 
 export function runLint(opts: LintOptions): { ok: boolean; errors: string[] } {
@@ -61,7 +63,8 @@ export function runLint(opts: LintOptions): { ok: boolean; errors: string[] } {
 
   for (const file of files) {
     try {
-      loadPhronyManifestFromFile(file);
+      const inputs = loadMergedManifestValuesInputs(opts.cwd, file, opts.valuesPath);
+      loadPhronyManifestFromFile(file, { inputs });
       opts.debug(`lint ok`, { file });
       if (!opts.json) {
         console.log(`${pc.green("ok")}  ${path.relative(opts.cwd, file) || file}`);

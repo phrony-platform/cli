@@ -1,12 +1,15 @@
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import type { DebugLogger } from "../lib/debug-logger.js";
+import { yamlTextLikelyHasInputPlaceholders } from "../lib/manifest-inputs.js";
 import { loadMergedManifestYamlString, resolveManifestEntryFile } from "../lib/manifest-file-loader.js";
 import {
   createManifestClient,
   ManifestHttpError,
   manifestClientOptionsFromResolved,
 } from "../lib/manifest-client.js";
+import { describeManifestPreflightFailure } from "../lib/manifest-preflight-cli.js";
+import { loadMergedManifestValuesInputs } from "../lib/manifest-values.js";
 import { manifestApplyResultToDto } from "../lib/manifest-plan-dto.js";
 import { renderManifestPlanTable } from "../lib/render-manifest-plan.js";
 import { resolveCliAuth } from "../lib/resolve-cli-auth.js";
@@ -23,6 +26,8 @@ export type ApplyOptions = {
   anchorAgentId?: string;
   autoApprove: boolean;
   debug: DebugLogger;
+  /** Optional path to `phrony.values.yaml` (overrides auto-discovery / PHRONY_MANIFEST_VALUES). */
+  valuesPath?: string;
 };
 
 async function confirmApply(): Promise<boolean> {
@@ -45,14 +50,42 @@ export async function runApply(opts: ApplyOptions): Promise<{ ok: boolean; exitC
     opts.debug(`apply: tenant=${auth.tenantId} profile=${auth.profile} mode=${auth.mode}`);
     const client = createManifestClient(manifestClientOptionsFromResolved(auth));
     const entry = resolveManifestEntryFile(opts.cwd, opts.manifestPath);
-    const yaml = loadMergedManifestYamlString(entry);
+    const inputs = loadMergedManifestValuesInputs(opts.cwd, entry, opts.valuesPath);
+    const yaml = loadMergedManifestYamlString(entry, { inputs });
+    if (Object.keys(inputs).length > 0 || yamlTextLikelyHasInputPlaceholders(yaml)) {
+      const preflight = await client.preflightManifest({ yaml, inputs });
+      if (!preflight.ok) {
+        if (opts.json) {
+          console.log(
+            JSON.stringify(
+              {
+                command: "apply",
+                ok: false,
+                preflight,
+                message: describeManifestPreflightFailure(preflight),
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.error(describeManifestPreflightFailure(preflight));
+        }
+        return { ok: false, exitCode: 1 };
+      }
+    }
 
-    const planResult = await client.applyManifestYaml(yaml, {
-      dryRun: true,
-      prune: opts.prune,
-      nameSuffix: opts.nameSuffix,
-      anchorAgentId: opts.anchorAgentId,
-    });
+    const transport = Object.keys(inputs).length > 0 ? { inputs } : undefined;
+    const planResult = await client.applyManifestYaml(
+      yaml,
+      {
+        dryRun: true,
+        prune: opts.prune,
+        nameSuffix: opts.nameSuffix,
+        anchorAgentId: opts.anchorAgentId,
+      },
+      transport,
+    );
     const planDto = manifestApplyResultToDto(planResult);
     if (opts.json && !opts.autoApprove) {
       console.log(
@@ -63,6 +96,7 @@ export async function runApply(opts: ApplyOptions): Promise<{ ok: boolean; exitC
             applied: false,
             message:
               "Dry-run only: pass --auto-approve with --json to perform the mutating apply (non-interactive).",
+            preflightOk: true,
             plan: planDto,
           },
           null,
@@ -83,15 +117,25 @@ export async function runApply(opts: ApplyOptions): Promise<{ ok: boolean; exitC
       }
     }
 
-    const applyResult = await client.applyManifestYaml(yaml, {
-      dryRun: false,
-      prune: opts.prune,
-      nameSuffix: opts.nameSuffix,
-      anchorAgentId: opts.anchorAgentId,
-    });
+    const applyResult = await client.applyManifestYaml(
+      yaml,
+      {
+        dryRun: false,
+        prune: opts.prune,
+        nameSuffix: opts.nameSuffix,
+        anchorAgentId: opts.anchorAgentId,
+      },
+      transport,
+    );
     const dto = manifestApplyResultToDto(applyResult);
     if (opts.json) {
-      console.log(JSON.stringify({ command: "apply", ok: true, plan: planDto, apply: dto }, null, 2));
+      console.log(
+        JSON.stringify(
+          { command: "apply", ok: true, preflightOk: true, plan: planDto, apply: dto },
+          null,
+          2,
+        ),
+      );
     } else {
       console.log(renderManifestPlanTable(dto));
     }

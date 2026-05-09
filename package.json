@@ -25,7 +25,8 @@
     "phrony": "dist/cli.mjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "assets"
   ],
   "engines": {
     "node": ">=22.14"

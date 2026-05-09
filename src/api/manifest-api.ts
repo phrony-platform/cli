@@ -6,6 +6,9 @@
  * `dryRun`, `prune`, `nameSuffix`, and `anchorAgentId` (UUID). Export for `diff` returns YAML for the
  * subtree rooted at the configured agent id, not an arbitrary workspace-wide snapshot.
  *
+ * Apply accepts raw YAML (`Content-Type: text/yaml`) or JSON `{ yaml, inputs?, llmProviderOverrides? }`.
+ * `POST …/manifest/preflight` accepts JSON `{ yaml, inputs? }` and returns structured blockers.
+ *
  * Update this module when documented HTTP behaviour changes.
  */
 

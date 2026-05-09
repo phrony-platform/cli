@@ -1,5 +1,11 @@
 import { parseAllDocuments, stringify } from "yaml";
 import {
+  collectMalformedManifestPlaceholders,
+  collectManifestInputPlaceholderKeys,
+  deepSubstituteManifestInputs,
+  extractDeclaredInputKeysFromRawDoc,
+} from "../lib/manifest-inputs.js";
+import {
   PhronyManifestDocumentV1Schema,
   PhronyManifestIndexV1Schema,
 } from "./manifest-document.schemas.js";
@@ -41,6 +47,7 @@ function mergeManifestDocuments(base: PhronyManifestV1, next: PhronyManifestV1):
     kind: "phrony.manifest",
     version: 1,
     metadata: Object.keys(meta).length ? meta : undefined,
+    inputs: mergeByKey(base.inputs ?? [], next.inputs ?? [], (x) => x.key),
     llmProviders: mergeByKey(base.llmProviders ?? [], next.llmProviders ?? [], (x) => x.name),
     services: mergeByKey(
       base.services ?? [],
@@ -68,7 +75,50 @@ export function normalizeManifestKind(doc: PhronyManifestDocumentV1): PhronyMani
   return { ...doc, kind: "phrony.manifest" };
 }
 
-export function parsePhronyManifestYaml(yamlText: string): PhronyManifestV1 {
+export function collectRawManifestDocumentsFromYaml(yamlText: string): unknown[] {
+  const collected: unknown[] = [];
+
+  const visitText = (text: string, depth: number) => {
+    if (depth > 32) {
+      throw new Error("manifest include depth exceeded");
+    }
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const streamDocs = parseAllDocuments(trimmed, YAML_PARSE_OPTIONS);
+    for (const d of streamDocs) {
+      const js = d.toJS(YAML_PARSE_OPTIONS);
+      if (
+        js == null ||
+        (typeof js === "object" && !Array.isArray(js) && Object.keys(js).length === 0)
+      ) {
+        continue;
+      }
+      if (isIndexDoc(js)) {
+        const parsedIndex = PhronyManifestIndexV1Schema.parse(js);
+        for (const inc of parsedIndex.includes) {
+          visitText(inc, depth + 1);
+        }
+        continue;
+      }
+      collected.push(js);
+    }
+  };
+
+  visitText(yamlText, 0);
+  return collected;
+}
+
+export type ParsePhronyManifestYamlOptions = {
+  inputs?: Record<string, string>;
+};
+
+export function parsePhronyManifestYaml(
+  yamlText: string,
+  opts?: ParsePhronyManifestYamlOptions,
+): PhronyManifestV1 {
   const collected: PhronyManifestDocumentV1[] = [];
 
   const visitText = (text: string, depth: number) => {
@@ -96,7 +146,27 @@ export function parsePhronyManifestYaml(yamlText: string): PhronyManifestV1 {
         }
         continue;
       }
-      collected.push(PhronyManifestDocumentV1Schema.parse(js));
+      const malformed = collectMalformedManifestPlaceholders(js);
+      if (malformed.length > 0) {
+        throw new Error(
+          `manifest contains invalid {{…}} placeholders (only {{inputs.KEY}} is allowed). Example: ${malformed[0]}`,
+        );
+      }
+      const declared = extractDeclaredInputKeysFromRawDoc(js);
+      const phKeys = collectManifestInputPlaceholderKeys(js);
+      if (declared.size > 0) {
+        const undeclared = [...phKeys].filter((k) => !declared.has(k));
+        if (undeclared.length > 0) {
+          throw new Error(
+            `manifest inputs: placeholders ${undeclared.map((k) => `{{inputs.${k}}}`).join(", ")} must each be declared in this document's inputs[]`,
+          );
+        }
+      }
+      let prepared: unknown = js;
+      if (opts?.inputs && Object.keys(opts.inputs).length > 0) {
+        prepared = deepSubstituteManifestInputs(js, opts.inputs);
+      }
+      collected.push(PhronyManifestDocumentV1Schema.parse(prepared));
     }
   };
 

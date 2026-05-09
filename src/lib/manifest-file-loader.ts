@@ -3,6 +3,12 @@ import path from "node:path";
 import { LineCounter, parseAllDocuments, stringify, type Document } from "yaml";
 import type { ZodError } from "zod";
 import {
+  collectMalformedManifestPlaceholders,
+  collectManifestInputPlaceholderKeys,
+  deepSubstituteManifestInputs,
+  extractDeclaredInputKeysFromRawDoc,
+} from "./manifest-inputs.js";
+import {
   PhronyManifestDocumentV1Schema,
   PhronyManifestIndexV1Schema,
 } from "../schema/manifest-document.schemas.js";
@@ -13,6 +19,38 @@ import { mergePhronyManifestDocuments } from "../schema/manifest-yaml.js";
 const YAML_PARSE_OPTIONS = { merge: false, uniqueKeys: true } as const;
 
 const MAX_INCLUDE_DEPTH = 32;
+
+export type LoadPhronyManifestOptions = {
+  /** Substitutes `{{inputs.key}}` in string leaves before Zod validation. */
+  inputs?: Record<string, string>;
+};
+
+function prepareManifestDocumentJs(
+  js: unknown,
+  inputs: Record<string, string> | undefined,
+): unknown {
+  const malformed = collectMalformedManifestPlaceholders(js);
+  if (malformed.length > 0) {
+    throw new Error(
+      `manifest contains invalid {{…}} placeholders (only {{inputs.KEY}} is allowed). Example: ${malformed[0]}`,
+    );
+  }
+  const declared = extractDeclaredInputKeysFromRawDoc(js);
+  const phKeys = collectManifestInputPlaceholderKeys(js);
+  if (declared.size > 0) {
+    const undeclared = [...phKeys].filter((k) => !declared.has(k));
+    if (undeclared.length > 0) {
+      throw new Error(
+        `manifest inputs: placeholders ${undeclared.map((k) => `{{inputs.${k}}}`).join(", ")} must each be declared in this document's inputs[]`,
+      );
+    }
+  }
+  let prepared: unknown = js;
+  if (inputs && Object.keys(inputs).length > 0) {
+    prepared = deepSubstituteManifestInputs(js, inputs);
+  }
+  return prepared;
+}
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -125,6 +163,7 @@ function collectFromInlineYaml(
   label: string,
   resolveBaseDir: string,
   out: PhronyManifestDocumentV1[],
+  inputs: Record<string, string> | undefined,
 ): void {
   if (depth > MAX_INCLUDE_DEPTH) {
     throw new Error(`manifest include depth exceeded (max ${MAX_INCLUDE_DEPTH})`);
@@ -151,10 +190,11 @@ function collectFromInlineYaml(
         throw new Error(formatZodIssues(label, lc, docStart, idx.error));
       }
       for (const inc of idx.data.includes) {
-        collectIncludePayload(label, resolveBaseDir, inc, visitingAbsolutePaths, depth + 1, out);
+        collectIncludePayload(label, resolveBaseDir, inc, visitingAbsolutePaths, depth + 1, out, inputs);
       }
     } else {
-      const parsed = PhronyManifestDocumentV1Schema.safeParse(js);
+      const prepared = prepareManifestDocumentJs(js, inputs);
+      const parsed = PhronyManifestDocumentV1Schema.safeParse(prepared);
       if (!parsed.success) {
         throw new Error(formatZodIssues(label, lc, docStart, parsed.error));
       }
@@ -170,13 +210,14 @@ function collectIncludePayload(
   visitingAbsolutePaths: Set<string>,
   depth: number,
   out: PhronyManifestDocumentV1[],
+  inputs: Record<string, string> | undefined,
 ): void {
   const kind = classifyInclude(baseDir, include);
   if (kind.mode === "reject-absolute") {
     throw new Error(`${sourceFileForErrors}: manifest include must be a relative file path or inline YAML`);
   }
   if (kind.mode === "file") {
-    collectManifestDocumentsFromFile(kind.absPath, visitingAbsolutePaths, depth, out);
+    collectManifestDocumentsFromFile(kind.absPath, visitingAbsolutePaths, depth, out, inputs);
     return;
   }
   collectFromInlineYaml(
@@ -186,6 +227,7 @@ function collectIncludePayload(
     `${sourceFileForErrors} (inline include)`,
     baseDir,
     out,
+    inputs,
   );
 }
 
@@ -194,6 +236,7 @@ function collectManifestDocumentsFromFile(
   visitingAbsolutePaths: Set<string>,
   depth: number,
   out: PhronyManifestDocumentV1[],
+  inputs: Record<string, string> | undefined,
 ): void {
   if (depth > MAX_INCLUDE_DEPTH) {
     throw new Error(`manifest include depth exceeded (max ${MAX_INCLUDE_DEPTH})`);
@@ -224,10 +267,11 @@ function collectManifestDocumentsFromFile(
           throw new Error(formatZodIssues(resolved, lc, docStart, idx.error));
         }
         for (const inc of idx.data.includes) {
-          collectIncludePayload(resolved, baseDir, inc, visitingAbsolutePaths, depth + 1, out);
+          collectIncludePayload(resolved, baseDir, inc, visitingAbsolutePaths, depth + 1, out, inputs);
         }
       } else {
-        const parsed = PhronyManifestDocumentV1Schema.safeParse(js);
+        const prepared = prepareManifestDocumentJs(js, inputs);
+        const parsed = PhronyManifestDocumentV1Schema.safeParse(prepared);
         if (!parsed.success) {
           throw new Error(formatZodIssues(resolved, lc, docStart, parsed.error));
         }
@@ -243,9 +287,12 @@ function collectManifestDocumentsFromFile(
  * Expand `phrony.manifest.index` file includes from disk, then parse and validate with Zod.
  * Errors use `path:line:column:` prefixes where the YAML layer provides offsets.
  */
-export function loadPhronyManifestFromFile(entryPath: string): PhronyManifestV1 {
+export function loadPhronyManifestFromFile(
+  entryPath: string,
+  options?: LoadPhronyManifestOptions,
+): PhronyManifestV1 {
   const collected: PhronyManifestDocumentV1[] = [];
-  collectManifestDocumentsFromFile(path.resolve(entryPath), new Set(), 0, collected);
+  collectManifestDocumentsFromFile(path.resolve(entryPath), new Set(), 0, collected, options?.inputs);
   return mergePhronyManifestDocuments(collected);
 }
 
@@ -291,12 +338,16 @@ function stringifyMergedManifestForApply(doc: PhronyManifestV1): string {
  * through `yaml` stringify can reorder object keys and falsely trigger server-side drift
  * (`JSON.stringify` equality on schemas/config).
  */
-export function loadMergedManifestYamlString(entryPath: string): string {
+export function loadMergedManifestYamlString(
+  entryPath: string,
+  options?: LoadPhronyManifestOptions,
+): string {
   const abs = path.resolve(entryPath);
-  if (manifestEntryUsesIndexInclude(abs)) {
-    return stringifyMergedManifestForApply(loadPhronyManifestFromFile(abs));
+  const useInputs = options?.inputs && Object.keys(options.inputs).length > 0;
+  if (manifestEntryUsesIndexInclude(abs) || useInputs) {
+    return stringifyMergedManifestForApply(loadPhronyManifestFromFile(abs, options));
   }
-  loadPhronyManifestFromFile(abs);
+  loadPhronyManifestFromFile(abs, options);
   return readFileSync(abs, "utf8").trim();
 }
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PhronyManifestInputDeclV1Schema } from "./manifest-document.schemas.js";
+
 export const ManifestChangeActionSchema = z.enum(["CREATE", "UPDATE", "NO_OP", "DELETE"]);
 
 export type ManifestChangeAction = z.infer<typeof ManifestChangeActionSchema>;
@@ -43,3 +45,32 @@ export const ManifestApplyResultSchema = z.object({
 });
 
 export type ManifestApplyResult = z.infer<typeof ManifestApplyResultSchema>;
+
+export const ManifestPreflightBlockerSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("missing_llm_provider"),
+    names: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal("malformed_placeholder"),
+    samples: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal("undeclared_input_placeholder"),
+    keys: z.array(z.string()),
+  }),
+]);
+
+export type ManifestPreflightBlocker = z.infer<typeof ManifestPreflightBlockerSchema>;
+
+export const ManifestPreflightResultSchema = z.object({
+  ok: z.boolean(),
+  blockers: z.array(ManifestPreflightBlockerSchema),
+  parseError: z.string().optional(),
+  missingInputs: z.array(z.string()).optional(),
+  referencedInputKeys: z.array(z.string()).optional(),
+  /** Merged `inputs[]` from raw manifest documents (for UI control types). */
+  declaredInputs: z.array(PhronyManifestInputDeclV1Schema).optional(),
+});
+
+export type ManifestPreflightResult = z.infer<typeof ManifestPreflightResultSchema>;

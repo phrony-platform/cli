@@ -6,11 +6,13 @@ import {
 } from "../api/manifest-api.js";
 import {
   ManifestApplyResultSchema,
+  ManifestPreflightResultSchema,
   type ManifestApplyResult,
+  type ManifestPreflightResult,
 } from "../schema/manifest-apply-result.schemas.js";
 import type { ResolvedCliAuth } from "./resolve-cli-auth.js";
 
-export type { ManifestApplyQuery, ManifestApplyResult };
+export type { ManifestApplyQuery, ManifestApplyResult, ManifestPreflightResult };
 
 export type ManifestAuth = { type: "bearer"; accessToken: string };
 
@@ -22,8 +24,22 @@ export type ManifestClientOptions = {
   fetchImpl?: typeof fetch;
 };
 
+export type ManifestApplyTransportOptions = {
+  inputs?: Record<string, string>;
+  llmProviderOverrides?: Record<string, string>;
+};
+
 export interface ManifestClient {
-  applyManifestYaml(yaml: string, query: ManifestApplyQuery): Promise<ManifestApplyResult>;
+  applyManifestYaml(
+    yaml: string,
+    query: ManifestApplyQuery,
+    transport?: ManifestApplyTransportOptions,
+  ): Promise<ManifestApplyResult>;
+  preflightManifest(body: {
+    yaml: string;
+    inputs?: Record<string, string>;
+    llmProviderOverrides?: Record<string, string>;
+  }): Promise<ManifestPreflightResult>;
   exportAgentManifestYaml(agentId: string): Promise<string>;
 }
 
@@ -50,6 +66,10 @@ function internalManifestExportPath(tenantId: string, agentId: string): string {
   return `/internal/v1/tenants/${tenantId}/agents/${agentId}/manifest`;
 }
 
+function internalManifestPreflightPath(tenantId: string): string {
+  return `/internal/v1/tenants/${tenantId}/agents/manifest/preflight`;
+}
+
 /**
  * Gateway internal manifest routes with `Authorization: Bearer` (OAuth JWT or workspace access token).
  */
@@ -66,16 +86,56 @@ export class JwtGatewayManifestClient implements ManifestClient {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
-  async applyManifestYaml(yaml: string, query: ManifestApplyQuery): Promise<ManifestApplyResult> {
-    const path = internalManifestApplyPath(this.tenantId, query);
+  async preflightManifest(body: {
+    yaml: string;
+    inputs?: Record<string, string>;
+    llmProviderOverrides?: Record<string, string>;
+  }): Promise<ManifestPreflightResult> {
+    const path = internalManifestPreflightPath(this.tenantId);
     const url = `${this.baseUrl}${path}`;
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers: {
-        "Content-Type": "text/yaml",
+        "Content-Type": "application/json",
         Authorization: `Bearer ${this.accessToken}`,
       },
-      body: yaml,
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new ManifestHttpError(res.status, path, text);
+    }
+    return ManifestPreflightResultSchema.parse(JSON.parse(text));
+  }
+
+  async applyManifestYaml(
+    yaml: string,
+    query: ManifestApplyQuery,
+    transport?: ManifestApplyTransportOptions,
+  ): Promise<ManifestApplyResult> {
+    const path = internalManifestApplyPath(this.tenantId, query);
+    const url = `${this.baseUrl}${path}`;
+    const useJson =
+      (transport?.inputs && Object.keys(transport.inputs).length > 0) ||
+      (transport?.llmProviderOverrides && Object.keys(transport.llmProviderOverrides).length > 0);
+    const res = await this.fetchImpl(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": useJson ? "application/json" : "text/yaml",
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+      body: useJson
+        ? JSON.stringify({
+            yaml,
+            ...(transport?.inputs && Object.keys(transport.inputs).length > 0
+              ? { inputs: transport.inputs }
+              : {}),
+            ...(transport?.llmProviderOverrides &&
+            Object.keys(transport.llmProviderOverrides).length > 0
+              ? { llmProviderOverrides: transport.llmProviderOverrides }
+              : {}),
+          })
+        : yaml,
     });
     const text = await res.text();
     if (!res.ok) {
