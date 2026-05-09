@@ -5,7 +5,7 @@ import pc from "picocolors";
 export type InitOptions = {
   cwd: string;
   json: boolean;
-  /** Overwrite manifests/index.yaml, example.yaml, phrony.config.{json,ts} if they already exist */
+  /** Overwrite manifests/index.yaml, example.yaml, phrony.config.json if they already exist */
   force?: boolean;
 };
 
@@ -52,23 +52,13 @@ versions:
     defaultProfile: "default",
   };
 
-  const configTs = `/** Optional reference — the CLI reads \`phrony.config.json\`. Duplicate values there. */
-export default {
-  tenantId: "",
-  apiBase: "https://api.phrony.com",
-  rootAgentId: "",
-  defaultProfile: "default",
-};
-`;
-
   const files: string[] = [];
   const pIndex = path.join(manifestsDir, "index.yaml");
   const pEx = path.join(manifestsDir, "example.yaml");
   const pJson = path.join(opts.cwd, "phrony.config.json");
-  const pTs = path.join(opts.cwd, "phrony.config.ts");
 
   if (!opts.force) {
-    for (const p of [pIndex, pEx, pJson, pTs]) {
+    for (const p of [pIndex, pEx, pJson]) {
       if (existsSync(p)) {
         throw new Error(`refusing to overwrite existing file (use --force): ${p}`);
       }
@@ -81,8 +71,6 @@ export default {
   files.push(pEx);
   writeFileSync(pJson, `${JSON.stringify(configJson, null, 2)}\n`);
   files.push(pJson);
-  writeFileSync(pTs, configTs);
-  files.push(pTs);
 
   const gitignore = path.join(opts.cwd, ".gitignore");
   let gi = "";

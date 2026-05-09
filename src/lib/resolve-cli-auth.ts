@@ -109,6 +109,7 @@ async function refreshOAuthIfStale(
 /**
  * Resolve workspace access token or OAuth profile credentials for network commands.
  * Order: **`PHRONY_ACCESS_TOKEN`** → **OAuth** profile from **`phrony login`** (with refresh).
+ * For OAuth, the gateway URL is **`PHRONY_API_BASE`**, then **`api_base` saved on that profile**, then **`apiBase` in `phrony.config.json`**, so a project template pointing at production does not override a local-dev login.
  *
  * Workspace **API keys** (`PHRONY_API_KEY`, profile `api_key`) are not used for manifest or agent commands;
  * they target external `/v1` routes. Use **`PHRONY_ACCESS_TOKEN`** or **`phrony login`** instead.
@@ -121,11 +122,9 @@ export async function resolveCliAuth(opts: ResolveAuthOptions): Promise<Resolved
 
   const pat = process.env.PHRONY_ACCESS_TOKEN?.trim();
   if (pat) {
-    if (loadProfileOAuthFromCredentialsFile(credPath, profile)) {
-      console.warn(
-        `[phrony] PHRONY_ACCESS_TOKEN is set; OAuth tokens in profile "${profile}" are ignored for this command.`,
-      );
-    }
+    console.warn(
+      `[phrony] PHRONY_ACCESS_TOKEN is set — API requests use that bearer token; profile "${profile}" does not select a different token (OAuth in ~/.phrony/credentials is not used).`,
+    );
     const apiBaseRaw =
       process.env.PHRONY_API_BASE?.trim() || cfg?.apiBase?.trim() || DEFAULT_API_BASE;
     const apiBase = normalizeApiBase(apiBaseRaw);
@@ -162,8 +161,8 @@ export async function resolveCliAuth(opts: ResolveAuthOptions): Promise<Resolved
 
   const apiBaseRaw =
     process.env.PHRONY_API_BASE?.trim() ||
-    cfg?.apiBase?.trim() ||
     oauth.apiBase?.trim() ||
+    cfg?.apiBase?.trim() ||
     DEFAULT_API_BASE;
   const apiBase = normalizeApiBase(apiBaseRaw);
 

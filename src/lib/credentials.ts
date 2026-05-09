@@ -202,6 +202,26 @@ export function loadProfileOAuthFromCredentialsFile(
   return profileOAuthFromTable(table);
 }
 
+/** `api_base` / `apiBase` on a profile table (for example after a prior login), without requiring a full OAuth row. */
+export function readProfileApiBaseFromCredentialsFile(
+  filePath: string,
+  profileName: string,
+): string | undefined {
+  let text: string;
+  try {
+    text = readFileSync(filePath, "utf8");
+  } catch {
+    return undefined;
+  }
+  const doc = parseCredentialsToml(text);
+  const table = doc[profileName];
+  if (!isRecord(table)) {
+    return undefined;
+  }
+  const raw = readStringField(table, "api_base", "apiBase");
+  return raw !== undefined && raw.trim() !== "" ? raw.trim() : undefined;
+}
+
 export type ListedCredentialProfile = {
   name: string;
   hasOAuthSession: boolean;

@@ -9,6 +9,11 @@ function isYamlFile(name: string): boolean {
   return name.endsWith(".yaml") || name.endsWith(".yml");
 }
 
+/** Values files use YAML but are not `phrony.manifest` documents; skip them when linting a directory. */
+function isManifestValuesFileName(fileName: string): boolean {
+  return fileName === "phrony.values.yaml" || fileName === "phrony.values.yml";
+}
+
 function walkYamlFiles(rootDir: string): string[] {
   const out: string[] = [];
   const stack = [path.resolve(rootDir)];
@@ -27,7 +32,7 @@ function walkYamlFiles(rootDir: string): string[] {
           continue;
         }
         stack.push(full);
-      } else if (ent.isFile() && isYamlFile(ent.name)) {
+      } else if (ent.isFile() && isYamlFile(ent.name) && !isManifestValuesFileName(ent.name)) {
         out.push(full);
       }
     }

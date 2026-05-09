@@ -63,7 +63,7 @@ The CLI **does not** use API keys for `plan`, `apply`, `diff`, or `agent`. If ei
 
 ### OAuth login behavior
 
-**`phrony login`** opens your browser; the CLI receives a callback and saves tokens under the selected profile in **`~/.phrony/credentials`**. Use **`--api-base`** for a custom gateway origin (same idea as **`PHRONY_API_BASE`** / **`apiBase`** in config).
+**`phrony login`** opens your browser; the CLI receives a callback and saves tokens under the selected profile in **`~/.phrony/credentials`**. Gateway resolution: **`--api-base`** → **`PHRONY_API_BASE`** → **`api_base` already stored on that profile** → **`apiBase`** in **`phrony.config.json`** → default **`https://api.phrony.com`**.
 
 **Self-hosted:** the Phrony **API** and **dashboard** URLs must match your deployment; see your organization’s runbook if sign-in fails.
 
@@ -72,7 +72,7 @@ The CLI **does not** use API keys for `plan`, `apply`, `diff`, or `agent`. If ei
 | Setting | Role |
 | ------- | ---- |
 | **`PHRONY_TENANT_ID`**, **`--tenant`**, **`tenantId` in config** | Workspace for internal API calls. After **`phrony login`**, the signed-in tenant is stored on the profile unless overridden. |
-| **`PHRONY_API_BASE`**, **`apiBase` in config** | Gateway origin (default **`https://api.phrony.com`**). |
+| **`PHRONY_API_BASE`**, **`apiBase` in config**, **`api_base` on OAuth profile** | Gateway origin (default **`https://api.phrony.com`**). With **OAuth**, the profile’s **`api_base`** (from login) overrides **`apiBase` in `phrony.config.json`** unless **`PHRONY_API_BASE`** is set—so sample manifests that pin production do not break **`--profile local`**. |
 | **`PHRONY_ROOT_AGENT_ID`**, **`rootAgentId` in config**, **`--agent` on `diff`** | Root agent for manifest **export** only (**subtree**, not the whole workspace). |
 
 ## Commands
@@ -94,7 +94,7 @@ These apply to **every** command and subcommand:
 
 | Command | Description |
 | ------- | ----------- |
-| `phrony init` | Create `manifests/`, `phrony.config.json`, `phrony.config.ts`, and append `.gitignore` hints for `.env` / `.phrony/`. Refuses to overwrite existing starter files unless **`--force`**. |
+| `phrony init` | Create `manifests/`, `phrony.config.json`, and append `.gitignore` hints for `.env` / `.phrony/`. Refuses to overwrite existing starter files unless **`--force`**. |
 
 ### Lint
 
@@ -154,7 +154,7 @@ These apply to **every** command and subcommand:
 | ----- | ------ |
 | Network commands | **`plan`**, **`apply`**, **`diff`**, and **`agent`** need **`phrony login`** or **`PHRONY_ACCESS_TOKEN`** against your workspace API (internal Bearer routes). |
 | Export scope | **`diff`** compares one **manifest subtree** rooted at a single agent id, not the entire workspace. |
-| Config file | Only **`phrony.config.json`** is read (not **`phrony.config.ts`**). Malformed JSON errors include the file path. |
+| Config file | Only **`phrony.config.json`** is read. Malformed JSON errors include the file path. |
 
 ## Links
 

@@ -1,8 +1,9 @@
 import type { DebugLogger } from "../lib/debug-logger.js";
+import { formatHttpErrorForTerminal, unauthorizedHttpHint } from "../lib/http-auth-failure-hint.js";
 import { InternalAgentsGatewayClient } from "../lib/internal-agents-client.js";
 import { ManifestHttpError } from "../lib/manifest-client.js";
 import { renderAgentVersionListTable } from "../lib/render-agent-version-list.js";
-import { resolveCliAuth } from "../lib/resolve-cli-auth.js";
+import { resolveCliAuth, type ResolvedCliAuth } from "../lib/resolve-cli-auth.js";
 
 export type AgentVersionLsOptions = {
   cwd: string;
@@ -45,7 +46,12 @@ function isVersionListPayload(v: unknown): v is { total: number; items: unknown[
   return typeof o.total === "number" && Array.isArray(o.items);
 }
 
-function writeHttpErr(command: string, e: ManifestHttpError, json: boolean): void {
+function writeHttpErr(
+  command: string,
+  e: ManifestHttpError,
+  json: boolean,
+  auth?: ResolvedCliAuth,
+): void {
   if (json) {
     console.log(
       JSON.stringify({
@@ -54,10 +60,11 @@ function writeHttpErr(command: string, e: ManifestHttpError, json: boolean): voi
         error: "http",
         status: e.status,
         message: e.message,
+        ...(e.status === 401 && auth ? { hint: unauthorizedHttpHint(auth) } : {}),
       }),
     );
   } else {
-    console.error(e.message);
+    console.error(auth ? formatHttpErrorForTerminal(e.status, e.message, auth) : e.message);
   }
 }
 
@@ -73,8 +80,9 @@ export async function runAgentVersionLs(
   opts: AgentVersionLsOptions,
 ): Promise<{ ok: boolean; exitCode: number }> {
   const command = "agent version ls";
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -108,7 +116,7 @@ export async function runAgentVersionLs(
     return { ok: true, exitCode: 0 };
   } catch (e) {
     if (e instanceof ManifestHttpError) {
-      writeHttpErr(command, e, opts.json);
+      writeHttpErr(command, e, opts.json, auth);
       return { ok: false, exitCode: 1 };
     }
     writeGenericErr(command, e instanceof Error ? e.message : String(e), opts.json);
@@ -120,8 +128,9 @@ export async function runAgentVersionGet(
   opts: AgentVersionGetOptions,
 ): Promise<{ ok: boolean; exitCode: number }> {
   const command = "agent version get";
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -143,7 +152,7 @@ export async function runAgentVersionGet(
     return { ok: true, exitCode: 0 };
   } catch (e) {
     if (e instanceof ManifestHttpError) {
-      writeHttpErr(command, e, opts.json);
+      writeHttpErr(command, e, opts.json, auth);
       return { ok: false, exitCode: 1 };
     }
     writeGenericErr(command, e instanceof Error ? e.message : String(e), opts.json);
@@ -155,8 +164,9 @@ export async function runAgentVersionDeploy(
   opts: AgentVersionDeployOptions,
 ): Promise<{ ok: boolean; exitCode: number }> {
   const command = "agent version deploy";
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -178,7 +188,7 @@ export async function runAgentVersionDeploy(
     return { ok: true, exitCode: 0 };
   } catch (e) {
     if (e instanceof ManifestHttpError) {
-      writeHttpErr(command, e, opts.json);
+      writeHttpErr(command, e, opts.json, auth);
       return { ok: false, exitCode: 1 };
     }
     writeGenericErr(command, e instanceof Error ? e.message : String(e), opts.json);
@@ -190,8 +200,9 @@ export async function runAgentVersionRetract(
   opts: AgentVersionRetractOptions,
 ): Promise<{ ok: boolean; exitCode: number }> {
   const command = "agent version retract";
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -213,7 +224,7 @@ export async function runAgentVersionRetract(
     return { ok: true, exitCode: 0 };
   } catch (e) {
     if (e instanceof ManifestHttpError) {
-      writeHttpErr(command, e, opts.json);
+      writeHttpErr(command, e, opts.json, auth);
       return { ok: false, exitCode: 1 };
     }
     writeGenericErr(command, e instanceof Error ? e.message : String(e), opts.json);

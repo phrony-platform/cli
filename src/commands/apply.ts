@@ -12,7 +12,8 @@ import { describeManifestPreflightFailure } from "../lib/manifest-preflight-cli.
 import { loadMergedManifestValuesInputs } from "../lib/manifest-values.js";
 import { manifestApplyResultToDto } from "../lib/manifest-plan-dto.js";
 import { renderManifestPlanTable } from "../lib/render-manifest-plan.js";
-import { resolveCliAuth } from "../lib/resolve-cli-auth.js";
+import { formatHttpErrorForTerminal, unauthorizedHttpHint } from "../lib/http-auth-failure-hint.js";
+import { resolveCliAuth, type ResolvedCliAuth } from "../lib/resolve-cli-auth.js";
 import { ManifestApiUnavailableError } from "../api/manifest-api.js";
 
 export type ApplyOptions = {
@@ -41,8 +42,9 @@ async function confirmApply(): Promise<boolean> {
 }
 
 export async function runApply(opts: ApplyOptions): Promise<{ ok: boolean; exitCode: number }> {
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -165,10 +167,11 @@ export async function runApply(opts: ApplyOptions): Promise<{ ok: boolean; exitC
             error: "http",
             status: e.status,
             message: e.message,
+            ...(e.status === 401 && auth ? { hint: unauthorizedHttpHint(auth) } : {}),
           }),
         );
       } else {
-        console.error(e.message);
+        console.error(auth ? formatHttpErrorForTerminal(e.status, e.message, auth) : e.message);
       }
       return { ok: false, exitCode: 1 };
     }

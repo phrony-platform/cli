@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatGatewayErrorBody } from "./format-gateway-error-body.js";
 import { PHRONY_CLI_OAUTH_CLIENT_ID } from "./pkce.js";
 
 const TokenPairSchema = z.object({
@@ -39,7 +40,7 @@ export async function postCliOAuthInit(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`CLI OAuth init failed (${res.status}): ${text.slice(0, 800)}`);
+    throw new Error(`CLI OAuth init failed: ${formatGatewayErrorBody(text)}`);
   }
   const json = JSON.parse(text) as unknown;
   const parsed = z
@@ -70,7 +71,7 @@ export async function postCliOAuthToken(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`CLI OAuth token exchange failed (${res.status}): ${text.slice(0, 800)}`);
+    throw new Error(`CLI OAuth token exchange failed: ${formatGatewayErrorBody(text)}`);
   }
   const json = JSON.parse(text) as unknown;
   return LoginResponseSchema.parse(json);
@@ -89,7 +90,7 @@ export async function postCliOAuthRefresh(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`CLI OAuth refresh failed (${res.status}): ${text.slice(0, 800)}`);
+    throw new Error(`CLI OAuth refresh failed: ${formatGatewayErrorBody(text)}`);
   }
   const json = JSON.parse(text) as unknown;
   return LoginResponseSchema.parse(json);

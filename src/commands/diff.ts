@@ -7,7 +7,8 @@ import {
 } from "../lib/manifest-client.js";
 import { diffManifestTrees } from "../lib/manifest-structural-diff.js";
 import { renderManifestPlanTable } from "../lib/render-manifest-plan.js";
-import { resolveCliAuth } from "../lib/resolve-cli-auth.js";
+import { formatHttpErrorForTerminal, unauthorizedHttpHint } from "../lib/http-auth-failure-hint.js";
+import { resolveCliAuth, type ResolvedCliAuth } from "../lib/resolve-cli-auth.js";
 import { parsePhronyManifestYaml } from "../schema/manifest-yaml.js";
 import { ManifestApiUnavailableError } from "../api/manifest-api.js";
 
@@ -23,8 +24,9 @@ export type DiffOptions = {
 };
 
 export async function runDiff(opts: DiffOptions): Promise<{ ok: boolean; exitCode: number }> {
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -74,10 +76,11 @@ export async function runDiff(opts: DiffOptions): Promise<{ ok: boolean; exitCod
             error: "http",
             status: e.status,
             message: e.message,
+            ...(e.status === 401 && auth ? { hint: unauthorizedHttpHint(auth) } : {}),
           }),
         );
       } else {
-        console.error(e.message);
+        console.error(auth ? formatHttpErrorForTerminal(e.status, e.message, auth) : e.message);
       }
       return { ok: false, exitCode: 1 };
     }

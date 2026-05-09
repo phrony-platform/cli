@@ -1,8 +1,9 @@
 import type { DebugLogger } from "../lib/debug-logger.js";
+import { formatHttpErrorForTerminal, unauthorizedHttpHint } from "../lib/http-auth-failure-hint.js";
 import { InternalAgentsGatewayClient } from "../lib/internal-agents-client.js";
 import { ManifestHttpError } from "../lib/manifest-client.js";
 import { renderAgentListTable } from "../lib/render-agent-list.js";
-import { resolveCliAuth } from "../lib/resolve-cli-auth.js";
+import { resolveCliAuth, type ResolvedCliAuth } from "../lib/resolve-cli-auth.js";
 
 export type AgentLsOptions = {
   cwd: string;
@@ -32,8 +33,9 @@ function isAgentListPayload(v: unknown): v is { total: number; items: unknown[] 
 }
 
 export async function runAgentLs(opts: AgentLsOptions): Promise<{ ok: boolean; exitCode: number }> {
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -72,10 +74,11 @@ export async function runAgentLs(opts: AgentLsOptions): Promise<{ ok: boolean; e
             error: "http",
             status: e.status,
             message: e.message,
+            ...(e.status === 401 && auth ? { hint: unauthorizedHttpHint(auth) } : {}),
           }),
         );
       } else {
-        console.error(e.message);
+        console.error(auth ? formatHttpErrorForTerminal(e.status, e.message, auth) : e.message);
       }
       return { ok: false, exitCode: 1 };
     }
@@ -90,8 +93,9 @@ export async function runAgentLs(opts: AgentLsOptions): Promise<{ ok: boolean; e
 }
 
 export async function runAgentGet(opts: AgentGetOptions): Promise<{ ok: boolean; exitCode: number }> {
+  let auth: ResolvedCliAuth | undefined;
   try {
-    const auth = await resolveCliAuth({
+    auth = await resolveCliAuth({
       cwd: opts.cwd,
       profile: opts.profile,
       tenantId: opts.tenantId,
@@ -119,10 +123,11 @@ export async function runAgentGet(opts: AgentGetOptions): Promise<{ ok: boolean;
             error: "http",
             status: e.status,
             message: e.message,
+            ...(e.status === 401 && auth ? { hint: unauthorizedHttpHint(auth) } : {}),
           }),
         );
       } else {
-        console.error(e.message);
+        console.error(auth ? formatHttpErrorForTerminal(e.status, e.message, auth) : e.message);
       }
       return { ok: false, exitCode: 1 };
     }

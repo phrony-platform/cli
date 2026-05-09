@@ -2,6 +2,7 @@ import type { DebugLogger } from "../lib/debug-logger.js";
 import {
   defaultCredentialsPath,
   persistProfileOAuthCredentials,
+  readProfileApiBaseFromCredentialsFile,
   resolveDefaultProfileName,
 } from "../lib/credentials.js";
 import { runBrowserOAuthLogin } from "../lib/oauth-login.js";
@@ -14,7 +15,7 @@ export type LoginOptions = {
   profile?: string;
   json: boolean;
   debug: DebugLogger;
-  /** Overrides PHRONY_API_BASE / phrony.config.json for this login only */
+  /** Overrides PHRONY_API_BASE / profile api_base / phrony.config.json for this login only */
   apiBase?: string;
 };
 
@@ -24,9 +25,11 @@ export async function runLogin(opts: LoginOptions): Promise<{ ok: boolean; exitC
     const credPath = defaultCredentialsPath();
     const profile =
       opts.profile ?? cfg?.defaultProfile ?? resolveDefaultProfileName(credPath) ?? "default";
+    const profileApiBase = readProfileApiBaseFromCredentialsFile(credPath, profile);
     const apiBaseRaw =
       opts.apiBase?.trim() ||
       process.env.PHRONY_API_BASE?.trim() ||
+      profileApiBase ||
       cfg?.apiBase?.trim() ||
       DEFAULT_API_BASE;
     const apiBase = apiBaseRaw.replace(/\/+$/, "");

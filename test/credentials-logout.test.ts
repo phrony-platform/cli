@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   listCredentialsProfiles,
   parseCredentialsToml,
+  readProfileApiBaseFromCredentialsFile,
   removeProfileOAuthCredentials,
 } from "../src/lib/credentials.js";
 
@@ -162,5 +163,22 @@ tenant_id = "00000000-0000-4000-8000-000000000001"
     expect(r.profiles).toEqual([
       { name: "partial", hasOAuthSession: false, hasAccessToken: true },
     ]);
+  });
+});
+
+describe("readProfileApiBaseFromCredentialsFile", () => {
+  it("returns api_base for a profile table", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "phrony-cli-cred-"));
+    const p = path.join(dir, "credentials");
+    writeFileSync(p, '[local]\napi_base = "http://localhost:3000"\n', "utf8");
+    expect(readProfileApiBaseFromCredentialsFile(p, "local")).toBe("http://localhost:3000");
+  });
+
+  it("returns undefined when profile or api_base is missing", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "phrony-cli-cred-"));
+    const p = path.join(dir, "credentials");
+    writeFileSync(p, "[local]\ntenant_id = \"x\"\n", "utf8");
+    expect(readProfileApiBaseFromCredentialsFile(p, "local")).toBeUndefined();
+    expect(readProfileApiBaseFromCredentialsFile(p, "nope")).toBeUndefined();
   });
 });

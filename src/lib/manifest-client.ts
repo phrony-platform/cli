@@ -10,6 +10,7 @@ import {
   type ManifestApplyResult,
   type ManifestPreflightResult,
 } from "../schema/manifest-apply-result.schemas.js";
+import { formatGatewayErrorBody } from "./format-gateway-error-body.js";
 import type { ResolvedCliAuth } from "./resolve-cli-auth.js";
 
 export type { ManifestApplyQuery, ManifestApplyResult, ManifestPreflightResult };
@@ -49,12 +50,16 @@ function normalizeBase(url: string): string {
 
 export class ManifestHttpError extends Error {
   readonly name = "ManifestHttpError";
+  /** Raw response body from the gateway (may be JSON or plain text). */
+  readonly body: string;
   constructor(
     readonly status: number,
     readonly path: string,
-    readonly body: string,
+    body: string,
   ) {
-    super(`HTTP ${status} ${path}: ${body.slice(0, 400)}`);
+    const detail = formatGatewayErrorBody(body);
+    super(detail);
+    this.body = body;
   }
 }
 
