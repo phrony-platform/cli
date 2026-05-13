@@ -7,21 +7,44 @@ const PLACEHOLDER_INNER = /^inputs\.[a-zA-Z0-9_]+$/;
 const PLACEHOLDER_GLOBAL = /\{\{\s*inputs\.([a-zA-Z0-9_]+)\s*\}\}/g;
 
 function walkStrings(value: unknown, visit: (s: string) => void): void {
+  walkStringsWithPath(value, (s) => visit(s), "");
+}
+
+/** @see `@phrony/srv-contracts` manifest-inputs.ts */
+function walkStringsWithPath(
+  value: unknown,
+  visit: (s: string, path: string) => void,
+  path: string,
+): void {
   if (typeof value === "string") {
-    visit(value);
+    visit(value, path);
     return;
   }
   if (Array.isArray(value)) {
-    for (const x of value) {
-      walkStrings(x, visit);
+    for (let i = 0; i < value.length; i++) {
+      walkStringsWithPath(value[i], visit, `${path}/${i}`);
     }
     return;
   }
   if (value !== null && typeof value === "object") {
-    for (const v of Object.values(value as Record<string, unknown>)) {
-      walkStrings(v, visit);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      walkStringsWithPath(v, visit, `${path}/${k}`);
     }
   }
+}
+
+function shouldCheckMalformedPlaceholderLeafPath(path: string): boolean {
+  return (
+    /^\/llmProviders\/\d+\/name$/.test(path) ||
+    /^\/services\/\d+\/(name|manifestKey)$/.test(path) ||
+    /^\/agents\/\d+\/llmProviderName$/.test(path) ||
+    /^\/versions\/\d+\/allowedOperations\/\d+\/serviceName$/.test(path) ||
+    /^\/triggers\/\d+\/serviceName$/.test(path)
+  );
+}
+
+function shouldSkipMalformedPlaceholderLeafPath(path: string): boolean {
+  return !shouldCheckMalformedPlaceholderLeafPath(path);
 }
 
 export function collectManifestInputPlaceholderKeys(value: unknown): Set<string> {
@@ -42,7 +65,10 @@ export function collectManifestInputPlaceholderKeys(value: unknown): Set<string>
 
 export function collectMalformedManifestPlaceholders(value: unknown): string[] {
   const samples: string[] = [];
-  walkStrings(value, (s) => {
+  walkStringsWithPath(value, (s, path) => {
+    if (shouldSkipMalformedPlaceholderLeafPath(path)) {
+      return;
+    }
     if (!s.includes("{{")) {
       return;
     }
@@ -64,7 +90,7 @@ export function collectMalformedManifestPlaceholders(value: unknown): string[] {
       }
       pos = end + 2;
     }
-  });
+  }, "");
   return samples;
 }
 

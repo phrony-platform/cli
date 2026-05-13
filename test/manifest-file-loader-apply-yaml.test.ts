@@ -15,7 +15,6 @@ agents:
     llmProviderName: openai
 versions:
   - agentManifestKey: agent1
-    status: testing
     versionLabel: v1
     llmModel: gpt-4o-mini
     inputSchema:

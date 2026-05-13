@@ -138,7 +138,6 @@ describe("diffManifestTrees", () => {
       versions: [
         {
           agentManifestKey: "example_root",
-          status: "deployed",
           versionLabel: "v2",
           llmModel: "gpt-4o",
         },
@@ -149,7 +148,6 @@ describe("diffManifestTrees", () => {
       versions: [
         {
           agentManifestKey: "example_root",
-          status: "deployed",
           versionLabel: "v2",
           llmModel: "gpt-4o",
           inputSchema: {},

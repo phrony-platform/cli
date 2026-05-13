@@ -75,7 +75,8 @@ export type PhronyManifestAgentV1 = z.infer<typeof PhronyManifestAgentV1Schema>;
 
 export const PhronyManifestVersionV1Schema = z.object({
   agentManifestKey: z.string().min(1),
-  status: AgentVersionStatusApiSchema,
+  /** Omitted in portable exports; apply never deploys from manifest when absent. */
+  status: AgentVersionStatusApiSchema.optional(),
   versionLabel: z.string().min(1, "versionLabel is required"),
   llmModel: z.string().min(1, "llmModel is required"),
   inputSchema: jsonObjectSchema.optional(),
@@ -161,6 +162,19 @@ export const PhronyManifestInputDeclV1Schema = z.object({
   type: z.enum(["string", "llm_provider", "integration"]),
   description: z.string().optional(),
   default: z.string().optional(),
+  /**
+   * When inferrable, the expected LLM vendor kind so UIs can filter workspace picklists
+   * (mirrors `llmProviders[].type` when that row uses `name: "{{inputs.key}}"`).
+   */
+  llmType: PhronyManifestLlmProviderV1Schema.shape.type.optional(),
+  /**
+   * Expected integration connector kind (`http` vs `built_in`) for workspace pickers.
+   */
+  integrationManifestType: ServiceTypeApiSchema.optional(),
+  /**
+   * For built-in integrations, the Composio toolkit slug when present in service config.
+   */
+  integrationToolkitSlug: z.string().min(1).optional(),
 });
 
 export type PhronyManifestInputDeclV1 = z.infer<typeof PhronyManifestInputDeclV1Schema>;

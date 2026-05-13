@@ -27,7 +27,7 @@ export function canonicalAgentVersionRecord(v: PhronyManifestVersionV1): Record<
   const canSub = v.canExecuteSubAgents ?? false;
   const out: Record<string, unknown> = {
     agentManifestKey: v.agentManifestKey,
-    status: v.status,
+    status: v.status ?? null,
     versionLabel: v.versionLabel,
     llmModel: v.llmModel,
     inputSchema: v.inputSchema ?? {},
